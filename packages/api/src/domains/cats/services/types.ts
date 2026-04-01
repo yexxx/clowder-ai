@@ -4,6 +4,7 @@
  */
 
 import type { CatId, MessageContent } from '@cat-cafe/shared';
+import type { McpServerDescriptor } from '@cat-cafe/shared';
 import type { RuntimeAcpModelProfile } from '../../../config/acp-model-profiles.js';
 import type { RuntimeProviderProfile } from '../../../config/provider-profiles.js';
 import type { CliSpawnOptions } from '../../../utils/cli-types.js';
@@ -194,6 +195,8 @@ export interface AgentServiceOptions {
   providerProfile?: RuntimeProviderProfile | null;
   /** Optional session-scoped model override for ACP runtimes. */
   acpModelProfile?: RuntimeAcpModelProfile | null;
+  /** Optional host MCP descriptors resolved for this invocation/cat. */
+  hostMcpServers?: readonly McpServerDescriptor[];
 }
 
 /**

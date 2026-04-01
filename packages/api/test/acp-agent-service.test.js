@@ -171,6 +171,111 @@ describe('resolveACPMcpTransportFromInitializeResult', () => {
       null,
     );
   });
+
+  it('buildAcpMcpServers forwards all enabled host MCP descriptors over ACP transport', async () => {
+    const { buildAcpMcpServers } = await import('../dist/domains/cats/services/agents/providers/acp-mcp-bridge.js');
+
+    assert.deepEqual(
+      buildAcpMcpServers(
+        {
+          agentCapabilities: {
+            mcpCapabilities: {
+              acp: true,
+            },
+          },
+        },
+        {
+          hostMcpServers: [
+            {
+              name: 'cat-cafe',
+              command: 'node',
+              args: ['dist/index.js'],
+              enabled: true,
+              source: 'cat-cafe',
+            },
+            {
+              name: 'context7',
+              command: 'npx',
+              args: ['-y', '@upstash/context7-mcp'],
+              enabled: true,
+              source: 'external',
+            },
+          ],
+        },
+      ),
+      [
+        { id: 'cat-cafe', name: 'cat-cafe', transport: 'acp', acpId: 'cat-cafe' },
+        { id: 'context7', name: 'context7', transport: 'acp', acpId: 'context7' },
+      ],
+    );
+  });
+
+  it('buildAcpMcpServers forwards non-cat-cafe stdio/http descriptors when ACP falls back to stdio MCP', async () => {
+    const { buildAcpMcpServers } = await import('../dist/domains/cats/services/agents/providers/acp-mcp-bridge.js');
+
+    const result = buildAcpMcpServers(undefined, {
+      callbackEnv: {
+        CAT_CAFE_API_URL: 'http://127.0.0.1:3004',
+        CAT_CAFE_INVOCATION_ID: 'inv-1',
+        CAT_CAFE_CALLBACK_TOKEN: 'tok-1',
+      },
+      hostMcpServers: [
+        {
+          name: 'cat-cafe',
+          command: 'node',
+          args: ['dist/index.js'],
+          enabled: true,
+          source: 'cat-cafe',
+        },
+        {
+          name: 'context7',
+          command: 'npx',
+          args: ['-y', '@upstash/context7-mcp'],
+          enabled: true,
+          source: 'external',
+        },
+        {
+          name: 'remote-docs',
+          command: '',
+          args: [],
+          enabled: true,
+          source: 'external',
+          transport: 'streamableHttp',
+          url: 'https://example.com/mcp',
+          headers: { Authorization: 'Bearer x' },
+        },
+      ],
+    });
+
+    assert.equal(result.length, 3);
+    assert.equal(result[0]?.id, 'cat-cafe');
+    assert.equal(result[0]?.name, 'cat-cafe');
+    assert.equal(result[0]?.transport, 'stdio');
+    assert.equal(typeof result[0]?.command, 'string');
+    assert.ok(Array.isArray(result[0]?.args));
+    assert.equal(typeof result[0]?.cwd, 'string');
+    assert.deepEqual(result[0]?.env, {
+      CAT_CAFE_API_URL: 'http://127.0.0.1:3004',
+      CAT_CAFE_INVOCATION_ID: 'inv-1',
+      CAT_CAFE_CALLBACK_TOKEN: 'tok-1',
+    });
+
+    assert.deepEqual(result[1], {
+      id: 'context7',
+      name: 'context7',
+      transport: 'stdio',
+      command: 'npx',
+      args: ['-y', '@upstash/context7-mcp'],
+    });
+
+    assert.deepEqual(result[2], {
+      id: 'remote-docs',
+      name: 'remote-docs',
+      transport: 'http',
+      url: 'https://example.com/mcp',
+      headers: { Authorization: 'Bearer x' },
+    });
+  });
 });
 
 describe('buildACPMetadata', () => {

@@ -27,6 +27,10 @@ import {
   HUAWEI_MAAS_MODEL_SOURCE_ID,
 } from '../../../../../config/model-config-profiles.js';
 import {
+  readCapabilitiesConfig,
+  resolveServersForCat,
+} from '../../../../../config/capabilities/capability-orchestrator.js';
+import {
   resolveBuiltinClientForProvider,
   validateRuntimeProviderBinding,
 } from '../../../../../config/provider-binding-compat.js';
@@ -628,6 +632,10 @@ export async function* invokeSingleCat(deps: InvocationDeps, params: InvocationP
     const builtinClient = provider ? resolveBuiltinClientForProvider(provider) : null;
     const defaultModel = catConfig?.defaultModel?.trim() || undefined;
     const configProjectRoot = resolveActiveProjectRoot(process.cwd());
+    const capabilitiesConfig = await readCapabilitiesConfig(configProjectRoot);
+    const hostMcpServers = capabilitiesConfig
+      ? resolveServersForCat(capabilitiesConfig, catId as string).filter((server) => server.enabled)
+      : [];
     const rawBoundAccountRef = resolveBoundAccountRefForCat(configProjectRoot, catId, catConfig);
     const embeddedAgentTeamsBinding = embeddedAcpRuntime
       ? await resolveEmbeddedAgentTeamsBinding(configProjectRoot, rawBoundAccountRef)
@@ -990,6 +998,7 @@ export async function* invokeSingleCat(deps: InvocationDeps, params: InvocationP
       ...(catConfig?.cliConfigArgs?.length ? { cliConfigArgs: catConfig.cliConfigArgs } : {}),
       ...(resolvedProviderProfileForService ? { providerProfile: resolvedProviderProfileForService } : {}),
       ...(resolvedAcpModelProfile ? { acpModelProfile: resolvedAcpModelProfile } : {}),
+      ...(hostMcpServers.length ? { hostMcpServers } : {}),
     };
 
     let lastErrorMessage: string | undefined;

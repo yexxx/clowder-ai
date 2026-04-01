@@ -9,6 +9,7 @@ import {
   isJSONRPCResultResponse,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { JSONRPCMessage, JSONRPCRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { McpServerDescriptor } from '@cat-cafe/shared';
 import type { AgentServiceOptions } from '../../types.js';
 import { ACPRequestError, ACPStdioClient } from './acp-transport.js';
 import { buildCatCafeMcpRequestConfig } from './relayclaw-catcafe-mcp.js';
@@ -33,32 +34,68 @@ export function resolveACPMcpTransportFromInitializeResult(
   return null;
 }
 
+function toAcpSessionMcpServer(
+  descriptor: McpServerDescriptor,
+  transport: ACPMcpTransport,
+  options?: AgentServiceOptions,
+): Record<string, unknown> | null {
+  if (transport === 'acp') {
+    return {
+      id: descriptor.name,
+      name: descriptor.name,
+      transport: 'acp',
+      acpId: descriptor.name,
+    };
+  }
+
+  if (descriptor.name === 'cat-cafe') {
+    const catCafeMcp = buildCatCafeMcpRequestConfig(options);
+    if (!catCafeMcp) return null;
+    return {
+      id: descriptor.name,
+      name: descriptor.name,
+      transport: 'stdio',
+      ...catCafeMcp,
+    };
+  }
+
+  if (descriptor.transport === 'streamableHttp') {
+    if (!descriptor.url) return null;
+    return {
+      id: descriptor.name,
+      name: descriptor.name,
+      transport: 'http',
+      url: descriptor.url,
+      ...(descriptor.headers ? { headers: descriptor.headers } : {}),
+    };
+  }
+
+  if (!descriptor.command?.trim()) return null;
+  return {
+    id: descriptor.name,
+    name: descriptor.name,
+    transport: 'stdio',
+    command: descriptor.command,
+    args: descriptor.args,
+    ...(descriptor.workingDir ? { cwd: descriptor.workingDir } : {}),
+    ...(descriptor.env ? { env: descriptor.env } : {}),
+  };
+}
+
 export function buildAcpMcpServers(
   initializeResult: Record<string, unknown> | undefined,
   options?: AgentServiceOptions,
 ): Array<Record<string, unknown>> {
   const transport = resolveACPMcpTransportFromInitializeResult(initializeResult);
   if (!transport) return [];
-  if (transport === 'acp') {
-    return [
-      {
-        id: 'cat-cafe',
-        name: 'cat-cafe',
-        transport: 'acp',
-        acpId: 'cat-cafe',
-      },
-    ];
+  const hostServers = options?.hostMcpServers?.filter((server) => server.enabled) ?? [];
+  const uniqueServers = new Map<string, Record<string, unknown>>();
+  for (const descriptor of hostServers) {
+    const resolved = toAcpSessionMcpServer(descriptor, transport, options);
+    if (!resolved) continue;
+    uniqueServers.set(descriptor.name, resolved);
   }
-  const catCafeMcp = buildCatCafeMcpRequestConfig(options);
-  if (!catCafeMcp) return [];
-  return [
-    {
-      id: 'cat-cafe',
-      name: 'cat-cafe',
-      transport: 'stdio',
-      ...catCafeMcp,
-    },
-  ];
+  return [...uniqueServers.values()];
 }
 
 type JsonRpcId = number | string;
