@@ -66,6 +66,12 @@ test('Windows offline installer prefers plain Redis portable zips before service
   assert.equal(asset?.name, 'Redis-8.2.1-Windows-x64-msys2.zip');
 });
 
+test('Windows offline bundle includes restart scripts in the staged runtime payload', () => {
+  assert.match(buildScript, /RUNTIME_SCRIPT_FILES = \[/);
+  assert.match(buildScript, /'restart-windows\.ps1'/);
+  assert.match(buildScript, /'restart\.bat'/);
+});
+
 test('Windows offline bundle builder deploys production packages and bundles Windows runtimes', () => {
   assert.match(buildScript, /WINDOWS_RUNTIME_NPM_ARGS = \[\s*'install',\s*'--omit=dev'/);
   assert.match(buildScript, /const entries = \['cat-cafe-skills', 'LICENSE', '\.env\.example', 'cat-template\.json'\]/);

@@ -66,6 +66,8 @@ const EXCLUDED_PREFIXES = [
 const RUNTIME_SCRIPT_FILES = [
   'install-auth-config.mjs',
   'install-windows-helpers.ps1',
+  'restart-windows.ps1',
+  'restart.bat',
   'start-entry.mjs',
   'start-windows.ps1',
   'start.bat',

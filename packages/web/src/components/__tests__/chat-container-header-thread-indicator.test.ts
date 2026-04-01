@@ -12,6 +12,12 @@ vi.mock('@/hooks/useTheme', () => ({
   useTheme: () => ({ theme: 'warm', config: null, toggleTheme: mockToggleTheme }),
 }));
 
+vi.mock('@/hooks/useCatData', () => ({
+  useCatData: () => ({
+    getCatById: () => null,
+  }),
+}));
+
 vi.mock('@/stores/chatStore', () => {
   const state = { openHub: mockOpenHub };
   const hook = Object.assign(
@@ -26,6 +32,7 @@ const defaultProps = {
   onToggleSidebar: vi.fn(),
   threadId: 'default',
   authPendingCount: 0,
+  targetCats: [],
   viewMode: 'single' as const,
   onToggleViewMode: vi.fn(),
   onOpenMobileStatus: vi.fn(),
@@ -71,6 +78,8 @@ describe('ChatContainerHeader controls', () => {
     const themeBtn = container.querySelector('button[aria-label="Switch to business theme"]') as HTMLButtonElement | null;
     expect(hubBtn).toBeTruthy();
     expect(themeBtn).toBeTruthy();
+    expect(hubBtn?.parentElement?.className).not.toContain('hidden');
+    expect(themeBtn?.parentElement?.className).not.toContain('hidden');
   });
 
   it('still supports settings and theme button interactions', () => {

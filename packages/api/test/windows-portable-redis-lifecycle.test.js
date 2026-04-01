@@ -4,6 +4,8 @@ import {
   commandHelpersScript,
   helpersScript,
   installScript,
+  restartBatScript,
+  restartWindowsScript,
   startBatScript,
   startWindowsScript,
   stopWindowsScript,
@@ -277,6 +279,25 @@ test('Windows stop script resolves redis-cli through the shared helper chain bef
 test('Windows start.bat delegates to start-windows.ps1', () => {
   assert.match(startBatScript, /powershell/i);
   assert.match(startBatScript, /start-windows\.ps1/);
+});
+
+test('Windows restart scripts stop services before starting them again', () => {
+  assert.match(restartWindowsScript, /param\(/);
+  assert.match(restartWindowsScript, /Join-Path \$ScriptDir "stop-windows\.ps1"/);
+  assert.match(restartWindowsScript, /Join-Path \$ScriptDir "start-windows\.ps1"/);
+  assert.match(restartWindowsScript, /Write-Step "Stop services"/);
+  assert.match(restartWindowsScript, /Write-Step "Start services"/);
+  assert.match(
+    restartWindowsScript,
+    /& powershell(?:\.exe)? -NoProfile -ExecutionPolicy Bypass -File \$stopScript/,
+  );
+  assert.match(
+    restartWindowsScript,
+    /& powershell(?:\.exe)? -NoProfile -ExecutionPolicy Bypass -File \$startScript @startArgs/,
+  );
+  assert.match(restartWindowsScript, /if \(\$LASTEXITCODE -ne 0\) \{\s+exit \$LASTEXITCODE\s+\}/s);
+  assert.match(restartBatScript, /powershell/i);
+  assert.match(restartBatScript, /restart-windows\.ps1/);
 });
 
 test('Windows installer generates .env before building so NEXT_PUBLIC_API_URL is baked into the web bundle', () => {

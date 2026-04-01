@@ -69,7 +69,7 @@ export function ChatContainerHeader({
           </svg>
         </button>
 
-        <div className="flex items-center gap-1 hidden">
+        <div className="flex items-center gap-1">
           <HubButton />
           <button
             type="button"
