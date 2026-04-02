@@ -1,6 +1,7 @@
 const withPWA = require('@ducanh2912/next-pwa').default;
 
 const enablePwaInDev = process.env.ENABLE_PWA_IN_DEV === '1';
+const useStandaloneOutput = process.env.CAT_CAFE_WEB_STANDALONE !== '0';
 
 function resolveApiBaseUrl() {
   const explicit = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
@@ -23,9 +24,8 @@ const apiBaseUrl = resolveApiBaseUrl();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   reactStrictMode: true,
-  output: 'standalone',
+  ...(useStandaloneOutput ? { output: 'standalone' } : {}),
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   // 允许 Tailscale 网段设备访问 dev server 的 /_next/* 资源

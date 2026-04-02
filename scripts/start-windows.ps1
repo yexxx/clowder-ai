@@ -430,9 +430,15 @@ try {
         if (-not $Dev) {
             Write-Host "  Building web (production)..."
             Push-Location (Join-Path $ProjectRoot "packages/web")
-            & $pnpmCommand run build
-            if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Err "Build failed: web"; throw "Build failed: web" }
-            Pop-Location
+            try {
+                $env:CAT_CAFE_WEB_STANDALONE = "0"
+                Write-Warn "Disabling Next standalone output for local Windows startup to avoid symlink permission failures"
+                & $pnpmCommand run build
+                if ($LASTEXITCODE -ne 0) { Write-Err "Build failed: web"; throw "Build failed: web" }
+            } finally {
+                Remove-Item Env:CAT_CAFE_WEB_STANDALONE -ErrorAction SilentlyContinue
+                Pop-Location
+            }
             Write-Ok "web (production)"
         }
     } else {
@@ -583,6 +589,7 @@ $runtimeEnvOverrides = @{
             [Console]::InputEncoding = [System.Text.Encoding]::UTF8
             $OutputEncoding = [System.Text.Encoding]::UTF8
             $env:PORT = $port
+            $env:CAT_CAFE_WEB_STANDALONE = "0"
             & $nodeCommand $nextCli start (Join-Path $root "packages/web") -p $port -H 0.0.0.0 2>&1
         } -ArgumentList $ProjectRoot, $WebPort, $nextCli, $nodeCommand
     }

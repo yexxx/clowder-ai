@@ -83,14 +83,22 @@ test('Windows stop script only stops Clowder-owned API and frontend listeners', 
     /\$RunDir = if \(\$ProjectRoot\) \{ Join-Path \$ProjectRoot "\.cat-cafe\/run\/windows" \} else \{ \$null \}/,
   );
   assert.match(stopWindowsScript, /Get-ManagedProcessId/);
+  assert.match(stopWindowsScript, /function Stop-ManagedProcessTree/);
+  assert.match(stopWindowsScript, /Stop-Process -Id \$ProcessId -Force -ErrorAction SilentlyContinue/);
+  assert.match(stopWindowsScript, /function Get-ProcessParentId/);
   assert.match(stopWindowsScript, /Test-ClowderOwnedProcess/);
+  assert.match(stopWindowsScript, /function Stop-ClowderProcessChain/);
+  assert.match(stopWindowsScript, /function Wait-PortReleased/);
   assert.match(
     stopWindowsScript,
     /\$isClowderOwned = \$isManagedPid -or \(Test-ClowderOwnedProcess -ProcessId \$conn\.OwningProcess -ClowderProjectRoot \$ProjectRoot\)/,
   );
+  assert.match(stopWindowsScript, /Stop-ClowderProcessChain -ProcessId \$conn\.OwningProcess -ProjectRoot \$ProjectRoot/);
+  assert.match(stopWindowsScript, /if \(Wait-PortReleased -Port \$Port\) \{/);
   assert.match(stopWindowsScript, /Write-Warn "Skipping non-Clowder \$Name listener on port \$Port/);
   assert.match(stopWindowsScript, /Write-Warn "\$Name \(port \$Port\) - no Clowder-owned listener found"/);
   assert.match(stopWindowsScript, /\$normalizedRoot = \$ClowderProjectRoot\.TrimEnd\('\\', '\/'\) \+ '\\'/);
+  assert.match(stopWindowsScript, /\$stoppedManagedProcess = Stop-ManagedProcessTree -ProcessId \$managedPid/);
 });
 
 test('Windows startup preserves runtime Redis overrides, validates artifacts, and exits when service jobs stop', () => {
@@ -118,6 +126,12 @@ test('Windows startup preserves runtime Redis overrides, validates artifacts, an
   assert.match(startWindowsScript, /Write-Err "Build failed: shared";\s+throw "Build failed: shared"/);
   assert.match(startWindowsScript, /Write-Err "Build failed: mcp-server";\s+throw "Build failed: mcp-server"/);
   assert.match(startWindowsScript, /Write-Err "Build failed: api";\s+throw "Build failed: api"/);
+  assert.match(startWindowsScript, /\$env:CAT_CAFE_WEB_STANDALONE = "0"/);
+  assert.match(
+    startWindowsScript,
+    /Write-Warn "Disabling Next standalone output for local Windows startup to avoid symlink permission failures"/,
+  );
+  assert.match(startWindowsScript, /Remove-Item Env:CAT_CAFE_WEB_STANDALONE -ErrorAction SilentlyContinue/);
   assert.match(startWindowsScript, /Write-Err "Build failed: web";\s+throw "Build failed: web"/);
   assert.match(startWindowsScript, /\$nextCli = @\(/);
   assert.match(startWindowsScript, /Join-Path \$ProjectRoot "packages\/web\/node_modules\/next\/dist\/bin\/next"/);
@@ -125,6 +139,10 @@ test('Windows startup preserves runtime Redis overrides, validates artifacts, an
   assert.match(
     startWindowsScript,
     /Write-Err "Next CLI not found - run pnpm install first or rebuild the packaged bundle"/,
+  );
+  assert.match(
+    startWindowsScript,
+    /\$env:CAT_CAFE_WEB_STANDALONE = "0"\s+& \$nodeCommand \$nextCli start \(Join-Path \$root "packages\/web"\) -p \$port -H 0\.0\.0\.0/s,
   );
   assert.match(startWindowsScript, /Service job '\$\(\$job.Name\)' stopped \(\$\(\$job.State\)\)/);
 });
@@ -201,8 +219,10 @@ test('Windows bundled runtime prefers random frontend, API, and Redis ports and 
 
 test('Windows stop script force-stops Redis that was started by the launcher during uninstall', () => {
   assert.match(stopWindowsScript, /\$redisStartedByLauncher = \[bool\]\(\$runtimeState -and \$runtimeState\.RedisStartedByLauncher\)/);
+  assert.match(stopWindowsScript, /function Get-ListeningConnectionsForPort/);
   assert.match(stopWindowsScript, /if \(\$redisStartedByLauncher\) \{\s+\$ownedRedisConnections = @\(\$redisConnections\)\s+\}/s);
   assert.match(stopWindowsScript, /if \(\$redisStartedByLauncher\) \{\s+break\s+\}/s);
+  assert.match(stopWindowsScript, /if \(Stop-ManagedProcessTree -ProcessId \$managedRedisPid\) \{/);
   assert.match(stopWindowsScript, /elseif \(\$redisStartedByLauncher -and \$managedRedisPid\) \{/);
   assert.match(stopWindowsScript, /Stop-Process -Id \$managedRedisPid -Force -ErrorAction SilentlyContinue/);
   assert.match(stopWindowsScript, /Write-Warn "Redis required forced termination \(port \$RedisPort\)"/);
@@ -260,10 +280,7 @@ test('Windows stop script resolves redis-cli through the shared helper chain bef
   assert.match(stopWindowsScript, /\$configuredRedisUrl = if \(\$runtimeState -and \$runtimeState\.RedisUrl\)/);
   assert.match(stopWindowsScript, /\$ApiPidFile = if \(\$runtimeState -and \$runtimeState\.ApiPidFile\)/);
   assert.match(stopWindowsScript, /\$redisPidFile = if \(\$runtimeState -and \$runtimeState\.RedisPidFile\)/);
-  assert.match(
-    stopWindowsScript,
-    /\$redisConnections = Get-NetTCPConnection -LocalPort \$RedisPort -State Listen -ErrorAction SilentlyContinue/,
-  );
+  assert.match(stopWindowsScript, /\$redisConnections = Get-ListeningConnectionsForPort -Port \$RedisPort/);
   assert.match(stopWindowsScript, /\$managedRedisPid = Get-ManagedProcessId -ManagedPidFile \$redisPidFile/);
   assert.match(
     stopWindowsScript,

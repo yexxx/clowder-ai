@@ -3,7 +3,7 @@ const path = require('node:path');
 const { describe, it } = require('node:test');
 
 const configPath = path.resolve(__dirname, '../next.config.js');
-const ENV_KEYS = ['NEXT_PUBLIC_API_URL', 'API_SERVER_PORT', 'FRONTEND_PORT'];
+const ENV_KEYS = ['NEXT_PUBLIC_API_URL', 'API_SERVER_PORT', 'FRONTEND_PORT', 'CAT_CAFE_WEB_STANDALONE'];
 
 function withEnv(overrides, run) {
   const snapshot = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
@@ -36,6 +36,12 @@ describe('next.config uploads rewrite', () => {
           destination: 'http://localhost:3004/uploads/:path*',
         },
       );
+    });
+  });
+
+  it('disables standalone output when CAT_CAFE_WEB_STANDALONE=0', async () => {
+    await withEnv({ CAT_CAFE_WEB_STANDALONE: '0' }, async (config) => {
+      assert.equal(Object.prototype.hasOwnProperty.call(config, 'output'), false);
     });
   });
 });
